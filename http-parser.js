@@ -57,6 +57,9 @@ var HTTPParser = function() {
     //Buffer to store incoming data chunks
     var binaryBuffer = new Buffer(0);
     
+    //Buffer used when parsing responses with a chunked transfer-encoding
+    var binaryChunkBuffer = new Buffer(0);
+    
     
     //Private functions:
     
@@ -130,40 +133,43 @@ var HTTPParser = function() {
     };
     
     var getBody = function() {
-    
-        console.log("Transfer-encoding: ", httpObject.transferEncoding);
         
         if (httpObject.transferEncoding === "chunked") {
-        
-            console.log("Chunked encoding");
             
             var firstLineEnd = bufferIndexOf(binaryBuffer, "\r\n");
             
             //Return if we do not have a complete first line
             if (firstLineEnd === -1) return false;
             
-            //The first line of the body indicates the chunk length in bytes
-            var chunkLength = parseInt(binaryBuffer.toString("hex", 0, firstLineEnd));
+            //The first line of the body indicates the chunk length as a hexidecimal in bytes
+            var chunkLength = parseInt(binaryBuffer.toString("ascii", 0, firstLineEnd), 16);
             
             //Return if we do not have a valid chunk length (throw error?)
             if (isNaN(chunkLength)) return false;
             
+            if (chunkLength === 0) {
+            
+                //TODO: Remove folling newlines in case of pipelined HTTP
+                
+                httpObject.body = binaryChunkBuffer;
+                return true;
+            }
+            
+            //Return if we do not have a complete chunk
+            if (binaryBuffer.length < chunkLength) return false;
+            
             //Remove the data we parsed from the buffer
             binaryBuffer = binaryBuffer.slice(firstLineEnd + Buffer.byteLength("\r\n"));
             
-            console.log("Chunk length:", chunkLength);
-            console.log("binaryBuffer:", binaryBuffer.toString());
-            
             //Create a new buffer to store the chunk
-            var body = new Buffer(chunkLength);
-            binaryBuffer.copy(body);
+            var chunk = new Buffer(chunkLength);
+            binaryBuffer.copy(chunk);
             
-            console.log("body:", body.toString());
+            //Remove the data we parsed from the buffer
+            binaryBuffer = binaryBuffer.slice(chunkLength + Buffer.byteLength("\r\n"));
             
-            //temp
-            /*var result = zlib.unzipSync(body);
-            
-            console.log("Result:", result.toString());*/
+            //TODO: Make this more memory efficient (don't create a new buffer every time a chunk comes in)
+            binaryChunkBuffer = Buffer.concat([binaryChunkBuffer, chunk]);
             
             return false;
         
@@ -179,6 +185,8 @@ var HTTPParser = function() {
             binaryBuffer.copy(body);
             
             httpObject.body = body;
+            
+            //TODO: Remove parsed data
             
             return true;
             
@@ -217,7 +225,19 @@ var HTTPParser = function() {
             case State.GET_BODY:
             
                 if (getBody()) {
-                
+                    
+                    //Decompress gzipped bodies
+                    if (httpObject.contentEncoding.indexOf("gzip") !== -1) {
+                        
+                        console.log("We're gzipped yo");
+                        
+                        //Store the raw (compressed) body in rawBody
+                        httpObject.rawBody = httpObject.body;
+                        
+                        //Inflate (decompress) the body
+                        httpObject.body = zlib.unzipSync(httpObject.rawBody);
+                    }
+                    
                     that.emit("bodyLoaded", httpObject.body);
                     that.emit("parseComplete", httpObject);
                     
