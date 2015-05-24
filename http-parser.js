@@ -34,6 +34,14 @@ var bufferIndexOf = function(buffer, searchString) {
     return -1;
 };
 
+var generateHttpObject = function() {
+
+    return {
+        rawHeaders: [],
+        headers: {}
+    };
+}
+
 var RequestParser = function() {
 
     //Init:
@@ -47,9 +55,7 @@ var RequestParser = function() {
     //Private variables:
     
     //HTTP object that we will build
-    var httpObject = {
-        headers: []
-    };
+    var httpObject = generateHttpObject();
     
     //The start state will be looking for the first line
     var state = State.GET_FIRST_LINE;
@@ -109,7 +115,11 @@ var RequestParser = function() {
                     httpObject.contentLength = headerKeyValue[1];
                 }
                 
-                httpObject.headers.push(headerKeyValue);
+                //Store all headers (including duplicates) as arrays in httpObject.rawHeaders
+                httpObject.rawHeaders.push(headerKeyValue);
+                
+                //Store all unique headers as key-value pairs in httpObject.headers
+                httpObject.headers[headerKeyValue[0]] = headerKeyValue[1];
             }
         }
         
@@ -183,9 +193,7 @@ var RequestParser = function() {
                     state = State.GET_FIRST_LINE;
                     
                     //Create a new httpObject for the next pipelined request
-                    httpObject = {
-                        headers: []
-                    };
+                    httpObject = generateHttpObject();
                     
                     executeState();
                 }
@@ -220,9 +228,7 @@ var ResponseParser = function() {
     //Private variables:
     
     //HTTP object that we will build
-    var httpObject = {
-        headers: []
-    };
+    var httpObject = generateHttpObject();
     
     //The start state will be looking for the first line
     var state = State.GET_FIRST_LINE;
@@ -295,7 +301,11 @@ var ResponseParser = function() {
                     httpObject.contentEncoding = headerKeyValue[1];
                 }
                 
-                httpObject.headers.push(headerKeyValue);
+                //Store all headers (including duplicates) as arrays in httpObject.rawHeaders
+                httpObject.rawHeaders.push(headerKeyValue);
+                
+                //Store all unique headers as key-value pairs in httpObject.headers
+                httpObject.headers[headerKeyValue[0]] = headerKeyValue[1];
             }
         }
         
@@ -312,39 +322,42 @@ var ResponseParser = function() {
             var firstLineEnd = bufferIndexOf(binaryBuffer, "\r\n");
             
             //Return if we do not have a complete first line
-            if (firstLineEnd === -1) return false;
+            while (firstLineEnd !== -1) {
             
-            //The first line of the body indicates the chunk length as a hexidecimal in bytes
-            var chunkLength = parseInt(binaryBuffer.toString("ascii", 0, firstLineEnd), 16);
-            
-            //Return if we do not have a valid chunk length (throw error?)
-            if (isNaN(chunkLength)) return false;
-            
-            //Return if we do not have a complete chunk
-            if (binaryBuffer.length < chunkLength) return false;
-            
-            //Remove the data we parsed from the buffer
-            binaryBuffer = binaryBuffer.slice(firstLineEnd + Buffer.byteLength("\r\n"));
-            
-            if (chunkLength === 0) {
+                //The first line of the body indicates the chunk length as a hexidecimal in bytes
+                var chunkLength = parseInt(binaryBuffer.toString("ascii", 0, firstLineEnd), 16);
                 
-                //Remove the extra newline from the buffer
-                binaryBuffer = binaryBuffer.slice(Buffer.byteLength("\r\n"));
+                //Return if we do not have a valid chunk length (throw error?)
+                if (isNaN(chunkLength)) return false;
                 
-                httpObject.body = binaryChunkBuffer;
+                //Return if we do not have a complete chunk
+                if (binaryBuffer.length < chunkLength) return false;
                 
-                return true;
+                //Remove the data we parsed from the buffer
+                binaryBuffer = binaryBuffer.slice(firstLineEnd + Buffer.byteLength("\r\n"));
+                
+                if (chunkLength === 0) {
+                    
+                    //Remove the extra newline from the buffer
+                    binaryBuffer = binaryBuffer.slice(Buffer.byteLength("\r\n"));
+                    
+                    httpObject.body = binaryChunkBuffer;
+                    
+                    return true;
+                }
+                
+                //Create a new buffer to store the chunk
+                var chunk = new Buffer(chunkLength);
+                binaryBuffer.copy(chunk);
+                
+                //Remove the data we parsed from the buffer
+                binaryBuffer = binaryBuffer.slice(chunkLength + Buffer.byteLength("\r\n"));
+                
+                //TODO: Make this more memory efficient (don't create a new buffer every time a chunk comes in)
+                binaryChunkBuffer = Buffer.concat([binaryChunkBuffer, chunk]);
+                
+                firstLineEnd = bufferIndexOf(binaryBuffer, "\r\n");
             }
-            
-            //Create a new buffer to store the chunk
-            var chunk = new Buffer(chunkLength);
-            binaryBuffer.copy(chunk);
-            
-            //Remove the data we parsed from the buffer
-            binaryBuffer = binaryBuffer.slice(chunkLength + Buffer.byteLength("\r\n"));
-            
-            //TODO: Make this more memory efficient (don't create a new buffer every time a chunk comes in)
-            binaryChunkBuffer = Buffer.concat([binaryChunkBuffer, chunk]);
             
             return false;
         
@@ -362,7 +375,7 @@ var ResponseParser = function() {
             httpObject.body = body;
             
             //Remove the data we parsed from the buffer
-            binaryBuffer = binaryBuffer.slice(contentLength + Buffer.byteLength("\r\n"));
+            binaryBuffer = binaryBuffer.slice(contentLength);
             
             return true;
             
@@ -427,16 +440,14 @@ var ResponseParser = function() {
                     state = State.GET_FIRST_LINE;
                     
                     //Create a new httpObject for the next pipelined request
-                    httpObject = {
-                        headers: []
-                    };
+                    httpObject = generateHttpObject();
                     
                     executeState();
                 }
                 break;
         }
         
-        //console.log("Response State:", state);
+        console.log("Response State:", state);
     };
     
     
