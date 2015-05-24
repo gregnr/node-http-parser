@@ -320,19 +320,21 @@ var ResponseParser = function() {
             //Return if we do not have a valid chunk length (throw error?)
             if (isNaN(chunkLength)) return false;
             
-            if (chunkLength === 0) {
-            
-                //TODO: Remove folling newlines in case of pipelined HTTP
-                
-                httpObject.body = binaryChunkBuffer;
-                return true;
-            }
-            
             //Return if we do not have a complete chunk
             if (binaryBuffer.length < chunkLength) return false;
             
             //Remove the data we parsed from the buffer
             binaryBuffer = binaryBuffer.slice(firstLineEnd + Buffer.byteLength("\r\n"));
+            
+            if (chunkLength === 0) {
+                
+                //Remove the extra newline from the buffer
+                binaryBuffer = binaryBuffer.slice(Buffer.byteLength("\r\n"));
+                
+                httpObject.body = binaryChunkBuffer;
+                
+                return true;
+            }
             
             //Create a new buffer to store the chunk
             var chunk = new Buffer(chunkLength);
