@@ -321,7 +321,7 @@ var ResponseParser = function() {
             
             var firstLineEnd = bufferIndexOf(binaryBuffer, "\r\n");
             
-            //Return if we do not have a complete first line
+            //Continue parsing as long as we have a complete first line
             while (firstLineEnd !== -1) {
             
                 //The first line of the body indicates the chunk length as a hexidecimal in bytes
