@@ -447,7 +447,7 @@ var ResponseParser = function() {
                 break;
         }
         
-        console.log("Response State:", state);
+        //console.log("Response State:", state);
     };
     
     
