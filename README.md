@@ -17,27 +17,28 @@ This project is pretty new. It currently does support chunked response parsing, 
 Node HTTP Parser takes a stream of data chunks as input. This is useful for most applications, which collect chunks of HTTP data as new packets arrive.
 
 Here is an example on how to use it to parse HTTP requests from a socket server:
-
-    var net = require('net');
-    var HTTPParser = require("./node-http-parser/http-parser");
+```javascript
+var net = require('net');
+var HTTPParser = require("./node-http-parser/http-parser");
     
-    var requestParser = new HTTPParser.RequestParser();
-    requestParser.on("parseComplete", function(httpObject) {
+var requestParser = new HTTPParser.RequestParser();
+requestParser.on("parseComplete", function(httpObject) {
     
-        console.log("Request parse complete");
-        console.log("Request headers: " + httpObject.headers);
-        console.log("Request body: " + httpObject.body.toString());
-        console.log();
+    console.log("Request parse complete");
+    console.log("Request headers: " + httpObject.headers);
+    console.log("Request body: " + httpObject.body.toString());
+    console.log();
         
+});
+    
+net.createServer(function(socket) {
+
+    socket.on('data', function(chunk) {
+        requestParser.pushChunk(chunk);
     });
-    
-    net.createServer(function(socket) {
-
-        socket.on('data', function(chunk) {
-            requestParser.pushChunk(chunk);
-        });
         
-    }).listen(80);
+}).listen(80);
+```
 
 ### Events
 Node HTTP Parser calls the "parseComplete" event each time it finishes parsing a request/response. Below are all of the events supported:
@@ -52,16 +53,16 @@ Returns:
     - rawBody: (Buffer) - Raw compressed body. Will only exist if the body was originally gzipped.
 
 Example:
-
-    requestParser.on("parseComplete", function(httpObject) {
+```javascript
+requestParser.on("parseComplete", function(httpObject) {
     
-        console.log("Request parse complete");
-        console.log("Request headers: " + httpObject.headers);
-        console.log("Request body: " + httpObject.body.toString());
-        console.log();
-        
-    });
+    console.log("Request parse complete");
+    console.log("Request headers: " + httpObject.headers);
+    console.log("Request body: " + httpObject.body.toString());
+    console.log();
     
+});
+```
     
 **headersLoaded:**
 
@@ -69,26 +70,28 @@ Returns:
 - headers: (Object) - Key-value string pairs for each header
 
 Example:
-
-    requestParser.on("headersLoaded", function(headers) {
+```javascript
+requestParser.on("headersLoaded", function(headers) {
     
-        console.log("Headers loaded");
-        console.log("Request headers: " + headers);
-        console.log();
-        
-    });
+    console.log("Headers loaded");
+    console.log("Request headers: " + headers);
+    console.log();
     
+});
+ ```
+ 
 **bodyLoaded:**
 
 Returns:
 - body: (Buffer) - The HTTP body. Returned as binary buffer since it could have any content type
 
 Example:
-
-    requestParser.on("bodyLoaded", function(body) {
+```javascript
+requestParser.on("bodyLoaded", function(body) {
     
-        console.log("Body loaded");
-        console.log("Request body: " + body.toString());
-        console.log();
-      
-    });
+    console.log("Body loaded");
+    console.log("Request body: " + body.toString());
+    console.log();
+    
+});
+```
