@@ -11,7 +11,7 @@ The goal of this library is to provide an HTTP/1.1 compliant parser written in J
 
 
 ### Current Stage
-This project is pretty new. It currently does support chunked response parsing, gzip decompression, and HTTP pipelining, however it has not been tested thoroughly. The current priority is to begin writing test cases over a diverse range of input.
+This project is pretty new. It currently does support chunked response parsing, gzip decompression, and HTTP pipelining, however it has not been tested thoroughly. It has not yet been tested against the HTTP/1.1 specs. The current priority is to begin writing test cases over a diverse range of input.
 
 ### Usage
 Node HTTP Parser takes a stream of data chunks as input. This is useful for most applications, which collect chunks of HTTP data as new packets arrive.
@@ -87,8 +87,8 @@ Example:
 
     requestParser.on("bodyLoaded", function(body) {
     
-        console.log("Headers loaded");
-        console.log("Request body: " + httpObject.body.toString());
+        console.log("Body loaded");
+        console.log("Request body: " + body.toString());
         console.log();
       
     });
