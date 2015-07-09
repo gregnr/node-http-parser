@@ -25,7 +25,7 @@ var requestParser = new HTTPParser.RequestParser();
 requestParser.on("parseComplete", function(httpObject) {
     
     console.log("Request parse complete");
-    console.log("Request headers: " + httpObject.headers);
+    console.log("Request headers: " + JSON.stringify(httpObject.headers, null, 4));
     console.log("Request body: " + httpObject.body.toString());
     console.log();
         
@@ -39,6 +39,7 @@ net.createServer(function(socket) {
         
 }).listen(80);
 ```
+Test it out - open a tab in your browser and make a request to [http://localhost/](http://localhost/). Check your output.
 
 ### Events
 Node HTTP Parser calls the "parseComplete" event each time it finishes parsing a request/response. Below are all of the events supported:
@@ -57,7 +58,7 @@ Example:
 requestParser.on("parseComplete", function(httpObject) {
     
     console.log("Request parse complete");
-    console.log("Request headers: " + httpObject.headers);
+    console.log("Request headers: " + JSON.stringify(httpObject.headers, null, 4));
     console.log("Request body: " + httpObject.body.toString());
     console.log();
     
@@ -74,7 +75,7 @@ Example:
 requestParser.on("headersLoaded", function(headers) {
     
     console.log("Headers loaded");
-    console.log("Request headers: " + headers);
+    console.log("Request headers: " + JSON.stringify(headers, null, 4));
     console.log();
     
 });
